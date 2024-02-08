@@ -17,4 +17,3 @@ jobs:
         with:
           token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
           release-type: simple
-          package-name: 2048.nvim
