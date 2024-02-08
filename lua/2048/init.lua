@@ -34,7 +34,7 @@ end
 function M.setup()
     math.randomseed(os.time())
     require("2048.highlights").setup()
-    vim.api.nvim_create_user_command("Start2048", function(event)
+    vim.api.nvim_create_user_command("Play2048", function(event)
         if #event.fargs > 0 then
             error("SpeedTyper: command does not take arguments.")
         end
