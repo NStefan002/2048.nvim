@@ -47,7 +47,7 @@ function M.setup()
     require("2048.highlights").setup()
     vim.api.nvim_create_user_command("Play2048", function(event)
         if #event.fargs > 0 then
-            error("SpeedTyper: command does not take arguments.")
+            error("2048: command does not take arguments.")
         end
         local game = M.new()
         game:create_window()
@@ -60,7 +60,7 @@ function M:create_window()
     local nvim_uis = vim.api.nvim_list_uis()
     if #nvim_uis > 0 then
         if nvim_uis[1].height <= height or nvim_uis[1].width <= width then
-            error("Increase the size of your Neovim instance.")
+            error("2048: increase the size of your Neovim instance.")
         end
     end
     local cols = vim.o.columns
@@ -82,7 +82,7 @@ function M:create_window()
     })
 
     if winnr == 0 then
-        error("Failed to open window")
+        error("2048: failed to open window")
     end
 
     self.bufnr = bufnr
