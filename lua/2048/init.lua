@@ -1,38 +1,33 @@
+local Data = require("2048.data")
+
 local M = {}
 M.__index = M
 
 function M.new()
+    local data = Data.load()
     local self = {
         bufnr = nil,
         winnr = nil,
+        score_bufnr = nil,
+        score_winnr = nil,
         ns_id = vim.api.nvim_create_namespace("2048"),
         _square_height = 5,
         _square_width = 10,
         _vertical_padding = 1,
         _horizontal_padding = 2,
-        _board_height = 4,
-        _board_width = 4,
         _up_down_animation_interval = 30,
         _left_right_animation_interval = nil,
-        values = {
-            { 0, 0, 0, 0 },
-            { 0, 0, 0, 0 },
-            { 0, 0, 0, 0 },
-            { 0, 0, 0, 0 },
-        },
+        board_height = data.board_height,
+        board_width = data.board_width,
+        cs = data.cs, -- current state
+        ps = data.ps, -- previous state
         destinations = {
             { { 1, 1 }, { 1, 2 }, { 1, 3 }, { 1, 4 } },
             { { 2, 1 }, { 2, 2 }, { 2, 3 }, { 2, 4 } },
             { { 3, 1 }, { 3, 2 }, { 3, 3 }, { 3, 4 } },
             { { 4, 1 }, { 4, 2 }, { 4, 3 }, { 4, 4 } },
         },
-        previous_state = {
-            { 0, 0, 0, 0 },
-            { 0, 0, 0, 0 },
-            { 0, 0, 0, 0 },
-            { 0, 0, 0, 0 },
-        },
-        changed = true,
+        changed = false,
         did_undo = false,
     }
     -- vertical spaces are larger than the horizontal spaces, so we need to adjust some things
@@ -94,8 +89,52 @@ function M:create_window()
     end
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, replacement)
 
-    self:draw()
+    self:create_scoreboard_window()
     self:set_keymaps()
+    self:create_autocmds()
+    self:draw()
+end
+
+function M:create_scoreboard_window()
+    local width = self:get_window_width()
+    local height = 1
+
+    local bufnr = vim.api.nvim_create_buf(false, true)
+
+    local winnr = vim.api.nvim_open_win(bufnr, false, {
+        relative = "win",
+        win = self.winnr,
+        anchor = "SW",
+        title = " Score ",
+        title_pos = "center",
+        row = -1,
+        col = -1,
+        width = width,
+        height = height,
+        style = "minimal",
+        border = "single",
+        noautocmd = true,
+    })
+
+    if winnr == 0 then
+        error("2048: failed to open scoreboard window")
+    end
+
+    self.score_bufnr = bufnr
+    self.score_winnr = winnr
+end
+
+function M:update_score()
+    local score_text = string.format(" Score: %d", self.cs.score)
+    local high_score_text = string.format("High Score: %d ", self.cs.high_score)
+    local sep = string.rep(" ", self:get_window_width() - #score_text - #high_score_text, "")
+    vim.api.nvim_buf_set_lines(
+        self.score_bufnr,
+        0,
+        1,
+        false,
+        { string.format("%s%s%s", score_text, sep, high_score_text) }
+    )
 end
 
 function M:set_keymaps()
@@ -110,37 +149,37 @@ function M:set_keymaps()
     local opts = { buffer = true }
     vim.keymap.set("n", "j", function()
         reset_destinations()
-        local tmp = vim.deepcopy(self.values)
+        local tmp = vim.deepcopy(self.cs)
         self:add_down()
         if self.changed then
-            self.previous_state = tmp
+            self.ps = tmp
             self:animate_down()
         end
     end, opts)
     vim.keymap.set("n", "k", function()
         reset_destinations()
-        local tmp = vim.deepcopy(self.values)
+        local tmp = vim.deepcopy(self.cs)
         self:add_up()
         if self.changed then
-            self.previous_state = tmp
+            self.ps = tmp
             self:animate_up()
         end
     end, opts)
     vim.keymap.set("n", "l", function()
         reset_destinations()
-        local tmp = vim.deepcopy(self.values)
+        local tmp = vim.deepcopy(self.cs)
         self:add_right()
         if self.changed then
-            self.previous_state = tmp
+            self.ps = tmp
             self:animate_right()
         end
     end, opts)
     vim.keymap.set("n", "h", function()
         reset_destinations()
-        local tmp = vim.deepcopy(self.values)
+        local tmp = vim.deepcopy(self.cs)
         self:add_left()
         if self.changed then
-            self.previous_state = tmp
+            self.ps = tmp
             self:animate_left()
         end
     end, opts)
@@ -150,17 +189,43 @@ function M:set_keymaps()
     end, opts)
 end
 
+function M:create_autocmds()
+    local autocmd = vim.api.nvim_create_autocmd
+    local augroup = vim.api.nvim_create_augroup
+    local grp = augroup("2048", {})
+
+    autocmd("WinClosed", {
+        group = grp,
+        callback = function(ev)
+            if tonumber(ev.match) == self.winnr then
+                Data.save(self.cs, self.ps, self.board_height, self.board_width)
+                vim.api.nvim_win_close(self.score_winnr, true)
+                pcall(vim.api.nvim_del_augroup_by_id, grp)
+            end
+        end,
+        desc = "Save the game state when closing the window",
+    })
+    autocmd("VimLeavePre", {
+        group = grp,
+        callback = function()
+            Data.save(self.cs, self.ps, self.board_height, self.board_width)
+        end,
+        desc = "Save the game state when exiting Vim",
+    })
+end
+
 function M:get_window_height()
-    return self._board_height * (self._square_height + self._vertical_padding)
+    return self.board_height * (self._square_height + self._vertical_padding)
         + self._vertical_padding
 end
 
 function M:get_window_width()
-    return self._board_width * (self._square_width + self._horizontal_padding)
+    return self.board_width * (self._square_width + self._horizontal_padding)
         + self._horizontal_padding
 end
 
 function M:draw()
+    self:update_score()
     if not self.did_undo and self.changed then
         self:spawn_2_or_4()
     end
@@ -175,10 +240,10 @@ function M:draw()
     local current_row = self._vertical_padding
     local current_col = self._horizontal_padding
 
-    for i = 1, self._board_height do
+    for i = 1, self.board_height do
         local values = string.rep(" ", self._horizontal_padding, "")
-        for j = 1, self._board_width do
-            local val = tostring(self.values[i][j])
+        for j = 1, self.board_width do
+            local val = tostring(self.cs.values[i][j])
             if val == "0" then
                 val = ""
             end
@@ -213,7 +278,7 @@ function M:draw()
             )
         end
 
-        for j = 1, self._board_width do
+        for j = 1, self.board_width do
             self:draw_square(current_col, current_row, i, j)
             current_col = current_col + self._square_width + self._horizontal_padding
         end
@@ -224,9 +289,9 @@ end
 
 function M:spawn_2_or_4()
     local empty_squares = {}
-    for i = 1, self._board_height do
-        for j = 1, self._board_width do
-            if self.values[i][j] == 0 then
+    for i = 1, self.board_height do
+        for j = 1, self.board_width do
+            if self.cs.values[i][j] == 0 then
                 table.insert(empty_squares, { i, j })
             end
         end
@@ -239,7 +304,7 @@ function M:spawn_2_or_4()
         two_or_four = 4
     end
 
-    self.values[selected_square[1]][selected_square[2]] = two_or_four
+    self.cs.values[selected_square[1]][selected_square[2]] = two_or_four
 end
 
 ---draw square on the board
@@ -252,9 +317,9 @@ function M:draw_square(x, y, i, j, _use_prev_state)
     _use_prev_state = _use_prev_state or false
     local value
     if _use_prev_state then
-        value = self.previous_state[i][j]
+        value = self.ps.values[i][j]
     else
-        value = self.values[i][j]
+        value = self.cs.values[i][j]
     end
     local hl_grp = "2048_Value" .. tostring(value)
     for k = 0, self._square_height - 1 do
@@ -271,13 +336,13 @@ end
 
 function M:add_down()
     self.changed = false
-    for i = self._board_height, 2, -1 do
-        for j = 1, self._board_width do
+    for i = self.board_height, 2, -1 do
+        for j = 1, self.board_width do
             local function first_empty_square()
                 local empty_square = 0
-                if self.values[i][j] == 0 then
+                if self.cs.values[i][j] == 0 then
                     empty_square = i
-                elseif self.values[i - 1][j] == 0 then
+                elseif self.cs.values[i - 1][j] == 0 then
                     empty_square = i - 1
                 end
                 return empty_square
@@ -285,9 +350,9 @@ function M:add_down()
             local empty_square = first_empty_square()
             local non_empty_square = empty_square - 1
             while empty_square >= 1 and non_empty_square >= 1 do
-                if self.values[non_empty_square][j] ~= 0 then
-                    self.values[empty_square][j] = self.values[non_empty_square][j]
-                    self.values[non_empty_square][j] = 0
+                if self.cs.values[non_empty_square][j] ~= 0 then
+                    self.cs.values[empty_square][j] = self.cs.values[non_empty_square][j]
+                    self.cs.values[non_empty_square][j] = 0
                     self.destinations[non_empty_square][j] = { empty_square, j }
                     self.changed = true
 
@@ -296,9 +361,11 @@ function M:add_down()
                 non_empty_square = non_empty_square - 1
             end
 
-            if self.values[i][j] ~= 0 and self.values[i][j] == self.values[i - 1][j] then
-                self.values[i][j] = self.values[i][j] + self.values[i - 1][j]
-                self.values[i - 1][j] = 0
+            if self.cs.values[i][j] ~= 0 and self.cs.values[i][j] == self.cs.values[i - 1][j] then
+                self.cs.values[i][j] = self.cs.values[i][j] + self.cs.values[i - 1][j]
+                self.cs.score = self.cs.score + self.cs.values[i][j]
+                self.cs.high_score = math.max(self.cs.score, self.cs.high_score)
+                self.cs.values[i - 1][j] = 0
                 self.destinations[i - 1][j] = { i, j }
                 self.changed = true
             end
@@ -308,23 +375,23 @@ end
 
 function M:add_up()
     self.changed = false
-    for i = 1, self._board_height - 1 do
-        for j = 1, self._board_width do
+    for i = 1, self.board_height - 1 do
+        for j = 1, self.board_width do
             local function first_empty_square()
-                local empty_square = self._board_height + 1
-                if self.values[i][j] == 0 then
+                local empty_square = self.board_height + 1
+                if self.cs.values[i][j] == 0 then
                     empty_square = i
-                elseif self.values[i + 1][j] == 0 then
+                elseif self.cs.values[i + 1][j] == 0 then
                     empty_square = i + 1
                 end
                 return empty_square
             end
             local empty_square = first_empty_square()
             local non_empty_square = empty_square + 1
-            while empty_square <= self._board_height and non_empty_square <= self._board_height do
-                if self.values[non_empty_square][j] ~= 0 then
-                    self.values[empty_square][j] = self.values[non_empty_square][j]
-                    self.values[non_empty_square][j] = 0
+            while empty_square <= self.board_height and non_empty_square <= self.board_height do
+                if self.cs.values[non_empty_square][j] ~= 0 then
+                    self.cs.values[empty_square][j] = self.cs.values[non_empty_square][j]
+                    self.cs.values[non_empty_square][j] = 0
                     self.destinations[non_empty_square][j] = { empty_square, j }
                     self.changed = true
 
@@ -332,9 +399,11 @@ function M:add_up()
                 end
                 non_empty_square = non_empty_square + 1
             end
-            if self.values[i][j] ~= 0 and self.values[i][j] == self.values[i + 1][j] then
-                self.values[i][j] = self.values[i][j] + self.values[i + 1][j]
-                self.values[i + 1][j] = 0
+            if self.cs.values[i][j] ~= 0 and self.cs.values[i][j] == self.cs.values[i + 1][j] then
+                self.cs.values[i][j] = self.cs.values[i][j] + self.cs.values[i + 1][j]
+                self.cs.score = self.cs.score + self.cs.values[i][j]
+                self.cs.high_score = math.max(self.cs.score, self.cs.high_score)
+                self.cs.values[i + 1][j] = 0
                 self.destinations[i + 1][j] = { i, j }
                 self.changed = true
             end
@@ -344,13 +413,13 @@ end
 
 function M:add_right()
     self.changed = false
-    for i = self._board_width, 2, -1 do
-        for j = 1, self._board_height do
+    for i = self.board_width, 2, -1 do
+        for j = 1, self.board_height do
             local function first_empty_square()
                 local empty_square = 0
-                if self.values[j][i] == 0 then
+                if self.cs.values[j][i] == 0 then
                     empty_square = i
-                elseif self.values[j][i - 1] == 0 then
+                elseif self.cs.values[j][i - 1] == 0 then
                     empty_square = i - 1
                 end
                 return empty_square
@@ -358,9 +427,9 @@ function M:add_right()
             local empty_square = first_empty_square()
             local non_empty_square = empty_square - 1
             while empty_square >= 1 and non_empty_square >= 1 do
-                if self.values[j][non_empty_square] ~= 0 then
-                    self.values[j][empty_square] = self.values[j][non_empty_square]
-                    self.values[j][non_empty_square] = 0
+                if self.cs.values[j][non_empty_square] ~= 0 then
+                    self.cs.values[j][empty_square] = self.cs.values[j][non_empty_square]
+                    self.cs.values[j][non_empty_square] = 0
                     self.destinations[j][non_empty_square] = { j, empty_square }
                     self.changed = true
 
@@ -369,9 +438,11 @@ function M:add_right()
                 non_empty_square = non_empty_square - 1
             end
 
-            if self.values[j][i] ~= 0 and self.values[j][i] == self.values[j][i - 1] then
-                self.values[j][i] = self.values[j][i] + self.values[j][i - 1]
-                self.values[j][i - 1] = 0
+            if self.cs.values[j][i] ~= 0 and self.cs.values[j][i] == self.cs.values[j][i - 1] then
+                self.cs.values[j][i] = self.cs.values[j][i] + self.cs.values[j][i - 1]
+                self.cs.score = self.cs.score + self.cs.values[j][i]
+                self.cs.high_score = math.max(self.cs.score, self.cs.high_score)
+                self.cs.values[j][i - 1] = 0
                 self.destinations[j][i - 1] = { j, i }
                 self.changed = true
             end
@@ -381,23 +452,23 @@ end
 
 function M:add_left()
     self.changed = false
-    for i = 1, self._board_width - 1 do
-        for j = 1, self._board_height do
+    for i = 1, self.board_width - 1 do
+        for j = 1, self.board_height do
             local function first_empty_square()
-                local empty_square = self._board_width + 1
-                if self.values[j][i] == 0 then
+                local empty_square = self.board_width + 1
+                if self.cs.values[j][i] == 0 then
                     empty_square = i
-                elseif self.values[j][i + 1] == 0 then
+                elseif self.cs.values[j][i + 1] == 0 then
                     empty_square = i + 1
                 end
                 return empty_square
             end
             local empty_square = first_empty_square()
             local non_empty_square = empty_square + 1
-            while empty_square <= self._board_width and non_empty_square <= self._board_width do
-                if self.values[j][non_empty_square] ~= 0 then
-                    self.values[j][empty_square] = self.values[j][non_empty_square]
-                    self.values[j][non_empty_square] = 0
+            while empty_square <= self.board_width and non_empty_square <= self.board_width do
+                if self.cs.values[j][non_empty_square] ~= 0 then
+                    self.cs.values[j][empty_square] = self.cs.values[j][non_empty_square]
+                    self.cs.values[j][non_empty_square] = 0
                     self.destinations[j][non_empty_square] = { j, empty_square }
                     self.changed = true
 
@@ -405,9 +476,11 @@ function M:add_left()
                 end
                 non_empty_square = non_empty_square + 1
             end
-            if self.values[j][i] ~= 0 and self.values[j][i] == self.values[j][i + 1] then
-                self.values[j][i] = self.values[j][i] + self.values[j][i + 1]
-                self.values[j][i + 1] = 0
+            if self.cs.values[j][i] ~= 0 and self.cs.values[j][i] == self.cs.values[j][i + 1] then
+                self.cs.values[j][i] = self.cs.values[j][i] + self.cs.values[j][i + 1]
+                self.cs.score = self.cs.score + self.cs.values[j][i]
+                self.cs.high_score = math.max(self.cs.score, self.cs.high_score)
+                self.cs.values[j][i + 1] = 0
                 self.destinations[j][i + 1] = { j, i }
                 self.changed = true
             end
@@ -416,7 +489,7 @@ function M:add_left()
 end
 
 function M:undo()
-    self.values = self.previous_state
+    self.cs = vim.deepcopy(self.ps)
     self.did_undo = true
 end
 
@@ -513,9 +586,9 @@ end
 function M:animate_down()
     -- distance each square has to travel
     local diffs = {}
-    for i = 1, self._board_height do
+    for i = 1, self.board_height do
         local tmp = {}
-        for j = 1, self._board_width do
+        for j = 1, self.board_width do
             local dest = self.destinations[i][j]
             -- left-right diff is irrelevant
             local diff = math.abs(i - dest[1])
@@ -526,9 +599,9 @@ function M:animate_down()
 
     -- coordinates of the top-left corner of each square
     local coords = {}
-    for i = 1, self._board_height do
+    for i = 1, self.board_height do
         local tmp = {}
-        for j = 1, self._board_width do
+        for j = 1, self.board_width do
             local x = self._horizontal_padding
                 + (j - 1) * (self._square_width + self._horizontal_padding)
             local y = self._vertical_padding
@@ -550,9 +623,9 @@ function M:animate_down()
                 return
             end
             -- some squares need to move less than others, so we need to speed them up so they all finish moving at the same time
-            for i = 1, self._board_height do
-                for j = 1, self._board_width do
-                    if self.previous_state[i][j] ~= 0 and diffs[i][j] ~= 0 then
+            for i = 1, self.board_height do
+                for j = 1, self.board_width do
+                    if self.ps.values[i][j] ~= 0 and diffs[i][j] ~= 0 then
                         coords[i][j][2] = coords[i][j][2] + diffs[i][j]
                         local x, y = coords[i][j][1], coords[i][j][2]
                         self:draw_square(x, y, i, j, true)
@@ -568,9 +641,9 @@ end
 function M:animate_up()
     -- distance each square has to travel
     local diffs = {}
-    for i = 1, self._board_height do
+    for i = 1, self.board_height do
         local tmp = {}
-        for j = 1, self._board_width do
+        for j = 1, self.board_width do
             local dest = self.destinations[i][j]
             -- left-right diff is irrelevant
             local diff = math.abs(i - dest[1])
@@ -581,9 +654,9 @@ function M:animate_up()
 
     -- coordinates of the bottom-left corner of each square
     local coords = {}
-    for i = 1, self._board_height do
+    for i = 1, self.board_height do
         local tmp = {}
-        for j = 1, self._board_width do
+        for j = 1, self.board_width do
             local x = self._horizontal_padding
                 + (j - 1) * (self._square_width + self._horizontal_padding)
             local y = i * (self._square_height + self._vertical_padding)
@@ -604,9 +677,9 @@ function M:animate_up()
                 return
             end
             -- some squares need to move less than others, so we need to speed them up so they all finish moving at the same time
-            for i = 1, self._board_height do
-                for j = 1, self._board_width do
-                    if self.previous_state[i][j] ~= 0 and diffs[i][j] ~= 0 then
+            for i = 1, self.board_height do
+                for j = 1, self.board_width do
+                    if self.ps.values[i][j] ~= 0 and diffs[i][j] ~= 0 then
                         coords[i][j][2] = coords[i][j][2] - diffs[i][j]
                         local x, y = coords[i][j][1], coords[i][j][2]
                         self:draw_square(x, y - self._square_height + 1, i, j, true)
@@ -622,9 +695,9 @@ end
 function M:animate_right()
     -- distance each square has to travel
     local diffs = {}
-    for i = 1, self._board_height do
+    for i = 1, self.board_height do
         local tmp = {}
-        for j = 1, self._board_width do
+        for j = 1, self.board_width do
             local dest = self.destinations[i][j]
             -- up-down diff is irrelevant
             local diff = math.abs(j - dest[2])
@@ -635,9 +708,9 @@ function M:animate_right()
 
     -- coordinates of the top-left corner of each square
     local coords = {}
-    for i = 1, self._board_height do
+    for i = 1, self.board_height do
         local tmp = {}
-        for j = 1, self._board_width do
+        for j = 1, self.board_width do
             local x = self._horizontal_padding
                 + (j - 1) * (self._square_width + self._horizontal_padding)
             local y = self._vertical_padding
@@ -659,9 +732,9 @@ function M:animate_right()
                 return
             end
             -- some squares need to move less than others, so we need to speed them up so they all finish moving at the same time
-            for i = 1, self._board_height do
-                for j = 1, self._board_width do
-                    if self.previous_state[i][j] ~= 0 and diffs[i][j] ~= 0 then
+            for i = 1, self.board_height do
+                for j = 1, self.board_width do
+                    if self.ps.values[i][j] ~= 0 and diffs[i][j] ~= 0 then
                         coords[i][j][1] = coords[i][j][1] + diffs[i][j]
                         local x, y = coords[i][j][1], coords[i][j][2]
                         self:draw_square(x, y, i, j, true)
@@ -677,9 +750,9 @@ end
 function M:animate_left()
     -- distance each square has to travel
     local diffs = {}
-    for i = 1, self._board_height do
+    for i = 1, self.board_height do
         local tmp = {}
-        for j = 1, self._board_width do
+        for j = 1, self.board_width do
             local dest = self.destinations[i][j]
             -- up-down diff is irrelevant
             local diff = math.abs(j - dest[2])
@@ -690,9 +763,9 @@ function M:animate_left()
 
     -- coordinates of the top-right corner of each square
     local coords = {}
-    for i = 1, self._board_height do
+    for i = 1, self.board_height do
         local tmp = {}
-        for j = 1, self._board_width do
+        for j = 1, self.board_width do
             local x = j * (self._square_width + self._horizontal_padding)
             local y = self._vertical_padding
                 + (i - 1) * (self._square_height + self._vertical_padding)
@@ -713,9 +786,9 @@ function M:animate_left()
                 return
             end
             -- some squares need to move less than others, so we need to speed them up so they all finish moving at the same time
-            for i = 1, self._board_height do
-                for j = 1, self._board_width do
-                    if self.previous_state[i][j] ~= 0 and diffs[i][j] ~= 0 then
+            for i = 1, self.board_height do
+                for j = 1, self.board_width do
+                    if self.ps.values[i][j] ~= 0 and diffs[i][j] ~= 0 then
                         coords[i][j][1] = coords[i][j][1] - diffs[i][j]
                         local x, y = coords[i][j][1], coords[i][j][2]
                         self:draw_square(x - self._square_width + 1, y, i, j, true)
