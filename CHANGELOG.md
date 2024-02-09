@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.1.0](https://github.com/NStefan002/2048.nvim/compare/v2.0.0...v2.1.0) (2024-02-09)
+
+
+### Features
+
+* save game state, display score ([ba20f35](https://github.com/NStefan002/2048.nvim/commit/ba20f35858b83373698f5d86cecfa089727ddc8f))
+
+
+### Bug Fixes
+
+* clean up copy-pasta text ([2d8237a](https://github.com/NStefan002/2048.nvim/commit/2d8237a4d1ec381c44018f4c549884a37eec360a))
+
 ## [2.0.0](https://github.com/NStefan002/2048.nvim/compare/v1.0.0...v2.0.0) (2024-02-09)
 
 
