@@ -428,7 +428,7 @@ function M:remove_square_trail_down(x, y, len)
             { string.rep(" ", self._square_width, "") }
         )
         local hl_grp
-        if k == 0 or k % background_line == 0 then
+        if k % background_line < self._vertical_padding then
             hl_grp = "2048_Background"
         else
             hl_grp = "2048_Value0"
@@ -453,7 +453,7 @@ function M:remove_square_trail_up(x, y, len)
             { string.rep(" ", self._square_width, "") }
         )
         local hl_grp
-        if k == 0 or k % background_line == 0 then
+        if k % background_line < self._vertical_padding then
             hl_grp = "2048_Background"
         else
             hl_grp = "2048_Value0"
