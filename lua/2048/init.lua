@@ -107,18 +107,18 @@ function M:set_keymaps()
         local tmp = vim.deepcopy(self.values)
         self:add_down()
         if self.changed then
-            -- update previous state
             self.previous_state = tmp
             self:animate_down()
         end
     end, opts)
     vim.keymap.set("n", "k", function()
+        reset_destinations()
         local tmp = vim.deepcopy(self.values)
         self:add_up()
         if self.changed then
             self.previous_state = tmp
+            self:animate_up()
         end
-        self:draw()
     end, opts)
     vim.keymap.set("n", "l", function()
         local tmp = vim.deepcopy(self.values)
@@ -437,6 +437,31 @@ function M:remove_square_trail_down(x, y, len)
     end
 end
 
+---remove the square trail when moving squares from bottom to top
+---@param x integer x coordinates of the bottom-left corner of the square
+---@param y integer y coordinates of the bottom-left corner of the square
+---@param len integer distance travelled
+function M:remove_square_trail_up(x, y, len)
+    local background_line = self._square_height + self._vertical_padding
+    for k = y + len, y + 1, -1 do
+        vim.api.nvim_buf_set_text(
+            self.bufnr,
+            k,
+            x,
+            k,
+            x + self._square_width,
+            { string.rep(" ", self._square_width, "") }
+        )
+        local hl_grp
+        if k == 0 or k % background_line == 0 then
+            hl_grp = "2048_Background"
+        else
+            hl_grp = "2048_Value0"
+        end
+        vim.api.nvim_buf_add_highlight(self.bufnr, self.ns_id, hl_grp, k, x, x + self._square_width)
+    end
+end
+
 function M:animate_down()
     -- distance each square has to travel
     local diffs = {}
@@ -484,6 +509,60 @@ function M:animate_down()
                         local x, y = coords[i][j][1], coords[i][j][2]
                         self:draw_square(x, y, i, j, true)
                         self:remove_square_trail_down(x, y, diffs[i][j])
+                    end
+                end
+            end
+            steps = steps - 1
+        end)
+    )
+end
+
+function M:animate_up()
+    -- distance each square has to travel
+    local diffs = {}
+    for i = 1, self._board_height do
+        local tmp = {}
+        for j = 1, self._board_width do
+            local dest = self.destinations[i][j]
+            -- left-right diff is irrelevant
+            local diff = math.abs(i - dest[1])
+            table.insert(tmp, diff)
+        end
+        table.insert(diffs, tmp)
+    end
+
+    -- coordinates of the bottom-left corner of each square
+    local coords = {}
+    for i = 1, self._board_height do
+        local tmp = {}
+        for j = 1, self._board_width do
+            local x = self._horizontal_padding
+                + (j - 1) * (self._square_width + self._horizontal_padding)
+            local y = i * (self._square_height + self._vertical_padding)
+            table.insert(tmp, { x, y })
+        end
+        table.insert(coords, tmp)
+    end
+
+    local timer = (vim.uv or vim.loop).new_timer()
+    local steps = self._square_height + self._vertical_padding
+    timer:start(
+        0,
+        30,
+        vim.schedule_wrap(function()
+            if steps == 0 then
+                timer:stop()
+                self:draw()
+                return
+            end
+            -- some squares need to move less than others, so we need to speed them up so they all finish moving at the same time
+            for i = 1, self._board_height do
+                for j = 1, self._board_width do
+                    if self.previous_state[i][j] ~= 0 and diffs[i][j] ~= 0 then
+                        coords[i][j][2] = coords[i][j][2] - diffs[i][j]
+                        local x, y = coords[i][j][1], coords[i][j][2]
+                        self:draw_square(x, y - self._square_height + 1, i, j, true)
+                        self:remove_square_trail_up(x, y, diffs[i][j])
                     end
                 end
             end
