@@ -13,10 +13,10 @@ function M.new()
         _board_height = 4,
         _board_width = 4,
         values = {
-            { 2, 0, 0, 0 },
-            { 0, 0, 0, 2 },
-            { 0, 0, 0, 2 },
-            { 0, 0, 0, 2 },
+            { 0, 0, 0, 0 },
+            { 0, 0, 0, 0 },
+            { 0, 0, 0, 0 },
+            { 0, 0, 0, 0 },
         },
         destinations = {
             { { 1, 1 }, { 1, 2 }, { 1, 3 }, { 1, 4 } },
@@ -24,7 +24,12 @@ function M.new()
             { { 3, 1 }, { 3, 2 }, { 3, 3 }, { 3, 4 } },
             { { 4, 1 }, { 4, 2 }, { 4, 3 }, { 4, 4 } },
         },
-        previous_state = nil,
+        previous_state = {
+            { 0, 0, 0, 0 },
+            { 0, 0, 0, 0 },
+            { 0, 0, 0, 0 },
+            { 0, 0, 0, 0 },
+        },
         changed = true,
         did_undo = false,
     }
@@ -84,15 +89,28 @@ function M:create_window()
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, replacement)
 
     self:draw()
+    self:set_keymaps()
+end
 
+function M:set_keymaps()
+    local function reset_destinations()
+        self.destinations = {
+            { { 1, 1 }, { 1, 2 }, { 1, 3 }, { 1, 4 } },
+            { { 2, 1 }, { 2, 2 }, { 2, 3 }, { 2, 4 } },
+            { { 3, 1 }, { 3, 2 }, { 3, 3 }, { 3, 4 } },
+            { { 4, 1 }, { 4, 2 }, { 4, 3 }, { 4, 4 } },
+        }
+    end
     local opts = { buffer = true }
     vim.keymap.set("n", "j", function()
+        reset_destinations()
         local tmp = vim.deepcopy(self.values)
         self:add_down()
         if self.changed then
+            -- update previous state
             self.previous_state = tmp
+            self:animate_down()
         end
-        self:draw()
     end, opts)
     vim.keymap.set("n", "k", function()
         local tmp = vim.deepcopy(self.values)
@@ -221,9 +239,17 @@ end
 ---@param y integer y coordinates of the top-left corner of the square
 ---@param i integer idx in the values table
 ---@param j integer idx in the values table
-function M:draw_square(x, y, i, j)
+---@param _use_prev_state boolean? defaults to false
+function M:draw_square(x, y, i, j, _use_prev_state)
+    _use_prev_state = _use_prev_state or false
+    local value
+    if _use_prev_state then
+        value = self.previous_state[i][j]
+    else
+        value = self.values[i][j]
+    end
+    local hl_grp = "2048_Value" .. tostring(value)
     for k = 0, self._square_height - 1 do
-        local hl_grp = "2048_Value" .. tostring(self.values[i][j])
         vim.api.nvim_buf_add_highlight(
             self.bufnr,
             self.ns_id,
@@ -240,10 +266,6 @@ function M:add_down()
     for i = self._board_height, 2, -1 do
         for j = 1, self._board_width do
             local function first_empty_square()
-                -- local zero_square = i
-                -- while zero_square >= 1 and self.values[zero_square][j] ~= 0 do
-                --     zero_square = zero_square - 1
-                -- end
                 local empty_square = 0
                 if self.values[i][j] == 0 then
                     empty_square = i
@@ -388,6 +410,86 @@ end
 function M:undo()
     self.values = self.previous_state
     self.did_undo = true
+end
+
+---remove the square trail when moving squares from top to bottom
+---@param x integer x coordinates of the top-left corner of the square
+---@param y integer y coordinates of the top-left corner of the square
+---@param len integer distance travelled
+function M:remove_square_trail_down(x, y, len)
+    local background_line = self._square_height + self._vertical_padding
+    for k = y - len, y - 1 do
+        vim.api.nvim_buf_set_text(
+            self.bufnr,
+            k,
+            x,
+            k,
+            x + self._square_width,
+            { string.rep(" ", self._square_width, "") }
+        )
+        local hl_grp
+        if k == 0 or k % background_line == 0 then
+            hl_grp = "2048_Background"
+        else
+            hl_grp = "2048_Value0"
+        end
+        vim.api.nvim_buf_add_highlight(self.bufnr, self.ns_id, hl_grp, k, x, x + self._square_width)
+    end
+end
+
+function M:animate_down()
+    -- distance each square has to travel
+    local diffs = {}
+    for i = 1, self._board_height do
+        local tmp = {}
+        for j = 1, self._board_width do
+            local dest = self.destinations[i][j]
+            -- left-right diff is irrelevant
+            local diff = math.abs(i - dest[1])
+            table.insert(tmp, diff)
+        end
+        table.insert(diffs, tmp)
+    end
+
+    -- coordinates of the top-left corner of each square
+    local coords = {}
+    for i = 1, self._board_height do
+        local tmp = {}
+        for j = 1, self._board_width do
+            local x = self._horizontal_padding
+                + (j - 1) * (self._square_width + self._horizontal_padding)
+            local y = self._vertical_padding
+                + (i - 1) * (self._square_height + self._vertical_padding)
+            table.insert(tmp, { x, y })
+        end
+        table.insert(coords, tmp)
+    end
+
+    local timer = (vim.uv or vim.loop).new_timer()
+    local steps = self._square_height + self._vertical_padding
+    timer:start(
+        0,
+        30,
+        vim.schedule_wrap(function()
+            if steps == 0 then
+                timer:stop()
+                self:draw()
+                return
+            end
+            -- some squares need to move less than others, so we need to speed them up so they all finish moving at the same time
+            for i = 1, self._board_height do
+                for j = 1, self._board_width do
+                    if self.previous_state[i][j] ~= 0 and diffs[i][j] ~= 0 then
+                        coords[i][j][2] = coords[i][j][2] + diffs[i][j]
+                        local x, y = coords[i][j][1], coords[i][j][2]
+                        self:draw_square(x, y, i, j, true)
+                        self:remove_square_trail_down(x, y, diffs[i][j])
+                    end
+                end
+            end
+            steps = steps - 1
+        end)
+    )
 end
 
 return M
