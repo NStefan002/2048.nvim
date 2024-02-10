@@ -89,6 +89,8 @@ function M:create_window()
     end
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, replacement)
 
+    vim.api.nvim_win_set_hl_ns(self.winnr, self.ns_id)
+
     self:create_scoreboard_window()
     self:set_keymaps()
     self:create_autocmds()
