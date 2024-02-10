@@ -186,6 +186,9 @@ function M:set_keymaps()
     vim.keymap.set("n", "u", function()
         self:undo()
     end, opts)
+    vim.keymap.set("n", "r", function()
+        self:restart()
+    end, opts)
 end
 
 function M:create_autocmds()
@@ -494,6 +497,17 @@ end
 function M:undo()
     self.cs = vim.deepcopy(self.ps)
     self.did_undo = true
+    self:draw()
+end
+
+function M:restart()
+    local defaults = Data.get_defaults()
+    self.cs.values = vim.deepcopy(defaults.cs.values)
+    self.cs.score = defaults.cs.score
+    self.ps.values = vim.deepcopy(defaults.ps.values)
+    self.ps.score = defaults.ps.score
+    self.changed = false
+    self.did_undo = false
     self:draw()
 end
 
