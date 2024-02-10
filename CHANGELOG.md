@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.0](https://github.com/NStefan002/2048.nvim/compare/v2.1.0...v2.2.0) (2024-02-10)
+
+
+### Features
+
+* detect if the game is over ([73d0550](https://github.com/NStefan002/2048.nvim/commit/73d0550b21919b1993d7901c0417c1ef97bbca3e))
+* restart the game on `r` ([5af0ea1](https://github.com/NStefan002/2048.nvim/commit/5af0ea1a25bbdb0622383cf807342cdbe756f99e))
+
 ## [2.1.0](https://github.com/NStefan002/2048.nvim/compare/v2.0.0...v2.1.0) (2024-02-09)
 
 
