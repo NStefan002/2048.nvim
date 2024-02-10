@@ -6,11 +6,7 @@
 
 ![2048_showcase](https://github.com/NStefan002/2048.nvim/assets/100767853/03f72082-71e2-400a-b25b-659cbc29b14c)
 
-
-
 https://github.com/NStefan002/2048.nvim/assets/100767853/b53c7947-c457-4b5f-814c-f07416ac182d
-
-
 
 ## 📋 Installation
 
@@ -35,6 +31,10 @@ use({
 })
 ```
 
+[rocks.nvim](https://github.com/nvim-neorocks/rocks.nvim)
+
+`:Rocks install 2048.nvim`
+
 ## ❓ How to Play
 
 1. `:Play2048`
@@ -42,6 +42,7 @@ use({
 3. Squares with the same number will merge when they collide, doubling their value.
 4. The goal is to create a tile with the number 2048.
 5. Continue playing and try to achieve the highest score possible.
+6. The game will automatically save your progress, so you can continue to play it whenever you want
 
 ## 🎮 Controls
 
