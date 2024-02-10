@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.0](https://github.com/NStefan002/2048.nvim/compare/v2.2.0...v2.3.0) (2024-02-10)
+
+
+### Features
+
+* **highlights:** move highlights to specific namespace ([a797367](https://github.com/NStefan002/2048.nvim/commit/a7973673842b3e36fb98c4321fc9bc5a9fd1b70a))
+
 ## [2.2.0](https://github.com/NStefan002/2048.nvim/compare/v2.1.0...v2.2.0) (2024-02-10)
 
 
