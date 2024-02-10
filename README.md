@@ -10,9 +10,7 @@
 {
     "NStefan002/2048.nvim",
     cmd = "Play2048",
-    opts = {
-    -- your config
-    }
+    config = true,
 }
 ```
 
@@ -22,9 +20,7 @@
 use({
     "NStefan002/2048.nvim",
     config = function()
-        require("2048").setup({
-            -- your config
-        })
+        require("2048").setup()
     end,
 })
 ```
@@ -44,4 +40,4 @@ use({
 -   `k` - move the squares up
 -   `l` - move the squares to the right
 -   `u` - undo the last move
--   `r` - restart (new game)
+-   `r` - restart the game
