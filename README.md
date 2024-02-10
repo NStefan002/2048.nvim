@@ -2,6 +2,16 @@
 
 > Implementation of the `2048` game for Neovim.
 
+## 📺 Showcase
+
+![2048_showcase](https://github.com/NStefan002/2048.nvim/assets/100767853/03f72082-71e2-400a-b25b-659cbc29b14c)
+
+
+
+https://github.com/NStefan002/2048.nvim/assets/100767853/b53c7947-c457-4b5f-814c-f07416ac182d
+
+
+
 ## 📋 Installation
 
 [lazy](https://github.com/folke/lazy.nvim):
