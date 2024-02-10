@@ -185,7 +185,6 @@ function M:set_keymaps()
     end, opts)
     vim.keymap.set("n", "u", function()
         self:undo()
-        self:draw()
     end, opts)
 end
 
@@ -284,6 +283,10 @@ function M:draw()
         end
         current_col = self._horizontal_padding
         current_row = current_row + self._square_height + self._vertical_padding
+    end
+
+    if self:game_over() then
+        return
     end
 end
 
@@ -491,6 +494,56 @@ end
 function M:undo()
     self.cs = vim.deepcopy(self.ps)
     self.did_undo = true
+    self:draw()
+end
+
+---@return boolean
+function M:game_over()
+    local function is_full()
+        for i = 1, self.board_height do
+            for j = 1, self.board_width do
+                if self.cs.values[i][j] == 0 then
+                    return false
+                end
+            end
+        end
+        return true
+    end
+
+    if not is_full() then
+        return false
+    end
+
+    -- test if any move is possible
+    for i = 1, self.board_height do
+        for j = 1, self.board_width do
+            if i < self.board_height and self.cs.values[i][j] == self.cs.values[i + 1][j] then
+                return false
+            end
+            if i > 1 and self.cs.values[i][j] == self.cs.values[i - 1][j] then
+                return false
+            end
+            if j < self.board_width and self.cs.values[i][j] == self.cs.values[i][j + 1] then
+                return false
+            end
+            if j > 1 and self.cs.values[i][j] == self.cs.values[i][j - 1] then
+                return false
+            end
+        end
+    end
+
+    -- move is not possible, game over
+    local msg = string.format("Game over! Your score is %d.", self.cs.score)
+    local half_sep = string.rep(" ", math.floor((self:get_window_width() - #msg) / 2), "")
+    vim.api.nvim_buf_set_lines(
+        self.score_bufnr,
+        0,
+        1,
+        false,
+        { string.format("%s%s%s", half_sep, msg, half_sep) }
+    )
+
+    return true
 end
 
 ---remove the square trail when moving squares from top to bottom
