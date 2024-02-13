@@ -52,9 +52,12 @@ end
 function M:create_window()
     local height = self:get_window_height()
     local width = self:get_window_width()
+    -- Why 5? -> 5 is just an approximation, so there is enough space for the scoreboard
+    -- window, and a little bit of padding between the scoreboard window and the top of the editor
+    local extra_space = 5
     local nvim_uis = vim.api.nvim_list_uis()
     if #nvim_uis > 0 then
-        if nvim_uis[1].height <= height or nvim_uis[1].width <= width then
+        if nvim_uis[1].height <= height + extra_space or nvim_uis[1].width <= width then
             error("2048: increase the size of your Neovim instance.")
         end
     end
@@ -97,6 +100,22 @@ function M:create_window()
     self:draw()
 end
 
+function M:close_window()
+    if self.bufnr ~= nil and vim.api.nvim_buf_is_valid(self.bufnr) then
+        vim.api.nvim_buf_delete(self.bufnr, { force = true })
+    end
+
+    if self.winnr ~= nil and vim.api.nvim_win_is_valid(self.winnr) then
+        vim.api.nvim_win_close(self.winnr, true)
+    end
+    self.bufnr = nil
+    self.winnr = nil
+
+    self:close_scoreboard_window()
+    pcall(vim.api.nvim_del_augroup_by_name, "2048")
+    self.changed = false
+end
+
 function M:create_scoreboard_window()
     local width = self:get_window_width()
     local height = 1
@@ -124,6 +143,19 @@ function M:create_scoreboard_window()
 
     self.score_bufnr = bufnr
     self.score_winnr = winnr
+end
+
+function M:close_scoreboard_window()
+    if self.score_bufnr ~= nil and vim.api.nvim_buf_is_valid(self.score_bufnr) then
+        vim.api.nvim_buf_delete(self.score_bufnr, { force = true })
+    end
+
+    if self.score_winnr ~= nil and vim.api.nvim_win_is_valid(self.score_winnr) then
+        vim.api.nvim_win_close(self.score_winnr, true)
+    end
+
+    self.score_bufnr = nil
+    self.score_winnr = nil
 end
 
 function M:update_score()
@@ -215,6 +247,18 @@ function M:create_autocmds()
             Data.save(self.cs, self.ps, self.board_height, self.board_width)
         end,
         desc = "Save the game state when exiting Vim",
+    })
+    autocmd({ "WinResized", "VimResized" }, {
+        group = grp,
+        callback = function(ev)
+            if ev.event == "VimResized" or tonumber(ev.match) == self.winnr then
+                -- save the data if the window cannot be opened after resize
+                Data.save(self.cs, self.ps, self.board_height, self.board_width)
+                self:close_window()
+                self:create_window()
+            end
+        end,
+        desc = "React to resizing window",
     })
 end
 
