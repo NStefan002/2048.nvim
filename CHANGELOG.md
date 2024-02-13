@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.0](https://github.com/NStefan002/2048.nvim/compare/v2.3.0...v2.4.0) (2024-02-13)
+
+
+### Features
+
+* handle resizing the game window and editor ([489bba1](https://github.com/NStefan002/2048.nvim/commit/489bba16d1d1d69fa85c26039a56f58c5bf87651))
+
 ## [2.3.0](https://github.com/NStefan002/2048.nvim/compare/v2.2.0...v2.3.0) (2024-02-10)
 
 
