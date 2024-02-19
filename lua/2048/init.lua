@@ -52,14 +52,14 @@ local default_keymap = { up = "k", down = "j", left = "h", right = "l", undo = "
 ---@field keys Keymap
 
 ---@type Config
-local default_config = {
+local config = {
     keys = default_keymap,
 }
 
 ---@param opts Config
 function M.setup(opts)
     ---@type Config
-    local config = vim.tbl_extend("force", default_config, opts)
+    config = vim.tbl_extend("force", config, opts)
 
     math.randomseed(os.time())
     require("2048.highlights").setup()
@@ -283,7 +283,7 @@ function M:create_autocmds()
                 -- save the data if the window cannot be opened after resize
                 Data.save(self.cs, self.ps, self.board_height, self.board_width)
                 self:close_window()
-                self:create_window()
+                self:create_window(config)
             end
         end,
         desc = "React to resizing window",
