@@ -37,7 +37,30 @@ function M.new()
     return setmetatable(self, M)
 end
 
-function M.setup()
+---@class Keymap
+---@field up string
+---@field down string
+---@field left string
+---@field right string
+---@field undo string
+---@field restart string
+
+---@type Keymap
+local default_keymap = { up = "k", down = "j", left = "h", right = "l", undo = "u", restart = "r" }
+
+---@class Config
+---@field keys Keymap
+
+---@type Config
+local config = {
+    keys = default_keymap,
+}
+
+---@param opts Config
+function M.setup(opts)
+    ---@type Config
+    config = vim.tbl_extend("force", config, opts)
+
     math.randomseed(os.time())
     require("2048.highlights").setup()
     vim.api.nvim_create_user_command("Play2048", function(event)
@@ -45,11 +68,12 @@ function M.setup()
             error("2048: command does not take arguments.")
         end
         local game = M.new()
-        game:create_window()
+        game:create_window(config)
     end, { nargs = 0, desc = "Start the game" })
 end
 
-function M:create_window()
+---@param opts table
+function M:create_window(opts)
     local height = self:get_window_height()
     local width = self:get_window_width()
     -- Why 5? -> 5 is just an approximation, so there is enough space for the scoreboard
@@ -96,7 +120,7 @@ function M:create_window()
     vim.api.nvim_win_set_hl_ns(self.winnr, self.ns_id)
 
     self:create_scoreboard_window()
-    self:set_keymaps()
+    self:set_keymaps(opts.keys)
     self:create_autocmds()
     self:draw()
 end
@@ -173,7 +197,9 @@ function M:update_score()
     )
 end
 
-function M:set_keymaps()
+---@param keys Keymap
+function M:set_keymaps(keys)
+    keys = vim.tbl_deep_extend("force", default_keymap, keys)
     local function reset_destinations()
         self.destinations = {
             { { 1, 1 }, { 1, 2 }, { 1, 3 }, { 1, 4 } },
@@ -183,7 +209,7 @@ function M:set_keymaps()
         }
     end
     local opts = { buffer = true }
-    vim.keymap.set("n", "j", function()
+    vim.keymap.set("n", keys.down, function()
         reset_destinations()
         local tmp = vim.deepcopy(self.cs)
         self:add_down()
@@ -192,7 +218,7 @@ function M:set_keymaps()
             self:animate_down()
         end
     end, opts)
-    vim.keymap.set("n", "k", function()
+    vim.keymap.set("n", keys.up, function()
         reset_destinations()
         local tmp = vim.deepcopy(self.cs)
         self:add_up()
@@ -201,7 +227,7 @@ function M:set_keymaps()
             self:animate_up()
         end
     end, opts)
-    vim.keymap.set("n", "l", function()
+    vim.keymap.set("n", keys.right, function()
         reset_destinations()
         local tmp = vim.deepcopy(self.cs)
         self:add_right()
@@ -210,7 +236,7 @@ function M:set_keymaps()
             self:animate_right()
         end
     end, opts)
-    vim.keymap.set("n", "h", function()
+    vim.keymap.set("n", keys.left, function()
         reset_destinations()
         local tmp = vim.deepcopy(self.cs)
         self:add_left()
@@ -219,10 +245,10 @@ function M:set_keymaps()
             self:animate_left()
         end
     end, opts)
-    vim.keymap.set("n", "u", function()
+    vim.keymap.set("n", keys.undo, function()
         self:undo()
     end, opts)
-    vim.keymap.set("n", "r", function()
+    vim.keymap.set("n", keys.restart, function()
         self:restart()
     end, opts)
 end
@@ -257,7 +283,7 @@ function M:create_autocmds()
                 -- save the data if the window cannot be opened after resize
                 Data.save(self.cs, self.ps, self.board_height, self.board_width)
                 self:close_window()
-                self:create_window()
+                self:create_window(config)
             end
         end,
         desc = "React to resizing window",
@@ -915,4 +941,5 @@ function M:animate_left()
         end)
     )
 end
+
 return M
