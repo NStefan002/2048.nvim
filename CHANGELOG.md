@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.0](https://github.com/NStefan002/2048.nvim/compare/v2.4.0...v2.5.0) (2024-02-19)
+
+
+### Features
+
+* set `filetype` option for both game and scoreboard buffer ([38d9627](https://github.com/NStefan002/2048.nvim/commit/38d9627875397321098235989889ac3b551c9507))
+
 ## [2.4.0](https://github.com/NStefan002/2048.nvim/compare/v2.3.0...v2.4.0) (2024-02-13)
 
 
