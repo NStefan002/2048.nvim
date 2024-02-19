@@ -35,23 +35,6 @@ use({
 
 `:Rocks install 2048.nvim`
 
-## Configuration
-
-You may set custom keymaps to control the gameplay. To do so, pass a table to the `setup` function:
-```lua
-require("2048").setup({
-    keys = {
-        up = "<Up>",
-        down = "<Down>",
-        left = "<Left>",
-        right = "<Right>",
-        undo = "<C-z>",
-        restart = "R",
-    }
-})
-```
-
-If no value is provided, the default keymaps will be used.
 
 ## ❓ How to Play
 
@@ -70,3 +53,23 @@ If no value is provided, the default keymaps will be used.
 -   `l` - move the squares to the right
 -   `u` - undo the last move
 -   `r` - restart the game
+
+**NOTE:**
+
+<details>
+    <summary>You can change the default mappings.</summary>
+
+
+```lua
+require("2048").setup({
+    keys = {
+        up = "<Up>",
+        down = "<Down>",
+        left = "<Left>",
+        right = "<Right>",
+        undo = "<C-z>",
+        restart = "R",
+    },
+})
+```
+</details>
