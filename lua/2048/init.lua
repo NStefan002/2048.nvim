@@ -46,20 +46,20 @@ end
 ---@field restart string
 
 ---@type Keymap
-local default_keymap = { up = "k", down = "j", left = "h", right = "l", undo = "u", restart = "r" }
+local default_keys = { up = "k", down = "j", left = "h", right = "l", undo = "u", restart = "r" }
 
 ---@class Config
 ---@field keys Keymap
 
 ---@type Config
 local config = {
-    keys = default_keymap,
+    keys = default_keys,
 }
 
----@param opts Config
+---@param opts? Config
 function M.setup(opts)
-    ---@type Config
-    config = vim.tbl_extend("force", config, opts)
+    opts = opts or {}
+    config = vim.tbl_deep_extend("force", config, opts)
 
     math.randomseed(os.time())
     require("2048.highlights").setup()
@@ -68,12 +68,11 @@ function M.setup(opts)
             error("2048: command does not take arguments.")
         end
         local game = M.new()
-        game:create_window(config)
+        game:create_window()
     end, { nargs = 0, desc = "Start the game" })
 end
 
----@param opts table
-function M:create_window(opts)
+function M:create_window()
     local height = self:get_window_height()
     local width = self:get_window_width()
     -- Why 5? -> 5 is just an approximation, so there is enough space for the scoreboard
@@ -120,7 +119,7 @@ function M:create_window(opts)
     vim.api.nvim_win_set_hl_ns(self.winnr, self.ns_id)
 
     self:create_scoreboard_window()
-    self:set_keymaps(opts.keys)
+    self:set_keymaps()
     self:create_autocmds()
     self:draw()
 end
@@ -197,9 +196,8 @@ function M:update_score()
     )
 end
 
----@param keys Keymap
-function M:set_keymaps(keys)
-    keys = vim.tbl_deep_extend("force", default_keymap, keys)
+function M:set_keymaps()
+    local keys = config.keys
     local function reset_destinations()
         self.destinations = {
             { { 1, 1 }, { 1, 2 }, { 1, 3 }, { 1, 4 } },
@@ -283,7 +281,7 @@ function M:create_autocmds()
                 -- save the data if the window cannot be opened after resize
                 Data.save(self.cs, self.ps, self.board_height, self.board_width)
                 self:close_window()
-                self:create_window(config)
+                self:create_window()
             end
         end,
         desc = "React to resizing window",
