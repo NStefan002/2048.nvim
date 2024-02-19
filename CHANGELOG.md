@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.6.0](https://github.com/NStefan002/2048.nvim/compare/v2.5.0...v2.6.0) (2024-02-19)
+
+
+### Features
+
+* **keymaps:** Allow setting custom keymaps. ([97ed337](https://github.com/NStefan002/2048.nvim/commit/97ed337185383aec8de24d4adb28bac834e5a1b8))
+
+
+### Bug Fixes
+
+* fix window-resize issue. ([dc3a83c](https://github.com/NStefan002/2048.nvim/commit/dc3a83c17106425cd40429a89ed69d5be43dae25))
+
 ## [2.5.0](https://github.com/NStefan002/2048.nvim/compare/v2.4.0...v2.5.0) (2024-02-19)
 
 
