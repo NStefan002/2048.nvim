@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.6.1](https://github.com/NStefan002/2048.nvim/compare/v2.6.0...v2.6.1) (2024-02-19)
+
+
+### Bug Fixes
+
+* **config:** check if `opts` is nil ([f892f98](https://github.com/NStefan002/2048.nvim/commit/f892f98b1070c1a07d51cb5665507f3c36f700e1))
+
 ## [2.6.0](https://github.com/NStefan002/2048.nvim/compare/v2.5.0...v2.6.0) (2024-02-19)
 
 
