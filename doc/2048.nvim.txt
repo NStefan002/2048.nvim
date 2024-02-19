@@ -6,7 +6,6 @@ Table of Contents                                *2048.nvim-table-of-contents*
 1. 2048                                                       |2048.nvim-2048|
   - Showcase                                         |2048.nvim-2048-showcase|
   - Installation                                 |2048.nvim-2048-installation|
-  - Configuration                               |2048.nvim-2048-configuration|
   - How to Play                                   |2048.nvim-2048-how-to-play|
   - Controls                                         |2048.nvim-2048-controls|
 
@@ -50,27 +49,6 @@ rocks.nvim <https://github.com/nvim-neorocks/rocks.nvim>
 `:Rocks install 2048.nvim`
 
 
-CONFIGURATION                                   *2048.nvim-2048-configuration*
-
-Youmay set custom keymaps to control the gameplay. To do so, pass a table to
-the `setup` function:
-
->lua
-    require("2048").setup({
-        keys = {
-            up = "<Up>",
-            down = "<Down>",
-            left = "<Left>",
-            right = "<Right>",
-            undo = "<C-z>",
-            restart = "R",
-        }
-    })
-<
-
-If no value is provided, the default keymaps will be used.
-
-
 HOW TO PLAY                                       *2048.nvim-2048-how-to-play*
 
 1. `:Play2048`
@@ -89,6 +67,23 @@ CONTROLS                                             *2048.nvim-2048-controls*
 - `l` - move the squares to the right
 - `u` - undo the last move
 - `r` - restart the game
+
+**NOTE:**
+
+You can change the default mappings. ~
+
+>lua
+    require("2048").setup({
+        keys = {
+            up = "<Up>",
+            down = "<Down>",
+            left = "<Left>",
+            right = "<Right>",
+            undo = "<C-z>",
+            restart = "R",
+        },
+    })
+<
 
 ==============================================================================
 2. Links                                                     *2048.nvim-links*
