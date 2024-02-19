@@ -83,6 +83,7 @@ function M:create_window()
         error("2048: failed to open window")
     end
 
+    vim.api.nvim_set_option_value("filetype", "2048Game", { buf = bufnr })
     self.bufnr = bufnr
     self.winnr = winnr
 
@@ -141,6 +142,7 @@ function M:create_scoreboard_window()
         error("2048: failed to open scoreboard window")
     end
 
+    vim.api.nvim_set_option_value("filetype", "2048Scoreboard", { buf = bufnr })
     self.score_bufnr = bufnr
     self.score_winnr = winnr
 end
