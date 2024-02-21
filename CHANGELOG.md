@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.7.0](https://github.com/NStefan002/2048.nvim/compare/v2.6.1...v2.7.0) (2024-02-21)
+
+
+### Features
+
+* **restart:** display confirmation prompt when restarting the game ([005497f](https://github.com/NStefan002/2048.nvim/commit/005497ff51883cd3f9859a6f2c38c589ec1f3013))
+* **restart:** remove win title when the restart prompt is active ([dbc4c7e](https://github.com/NStefan002/2048.nvim/commit/dbc4c7e6b365bf46863b93c3017cef0a25f6d7bf))
+
 ## [2.6.1](https://github.com/NStefan002/2048.nvim/compare/v2.6.0...v2.6.1) (2024-02-19)
 
 
