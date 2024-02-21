@@ -158,6 +158,7 @@ function M:create_scoreboard_window()
         height = height,
         style = "minimal",
         border = "single",
+        focusable = false,
         noautocmd = true,
     })
 
@@ -168,6 +169,7 @@ function M:create_scoreboard_window()
     vim.api.nvim_set_option_value("filetype", "2048Scoreboard", { buf = bufnr })
     self.score_bufnr = bufnr
     self.score_winnr = winnr
+    vim.api.nvim_win_set_hl_ns(self.score_winnr, self.ns_id)
 end
 
 function M:close_scoreboard_window()
@@ -247,7 +249,7 @@ function M:set_keymaps()
         self:undo()
     end, opts)
     vim.keymap.set("n", keys.restart, function()
-        self:restart()
+        self:confirm_restart()
     end, opts)
 end
 
@@ -581,6 +583,28 @@ function M:restart()
     self.changed = false
     self.did_undo = false
     self:draw()
+end
+
+function M:confirm_restart()
+    local msg = "Confirm restart? (y/n)"
+    local half_sep = string.rep(" ", math.floor((self:get_window_width() - #msg) / 2), "")
+    vim.api.nvim_buf_set_lines(
+        self.score_bufnr,
+        0,
+        1,
+        false,
+        { string.format("%s%s%s", half_sep, msg, half_sep) }
+    )
+    vim.api.nvim_buf_add_highlight(self.score_bufnr, self.ns_id, "2048_Confirmation", 0, 0, -1)
+    vim.api.nvim_set_current_win(self.score_winnr)
+    vim.keymap.set("n", "y", function()
+        vim.api.nvim_set_current_win(self.winnr)
+        self:restart()
+    end, { buffer = true })
+    vim.keymap.set("n", "n", function()
+        vim.api.nvim_set_current_win(self.winnr)
+        self:update_score()
+    end, { buffer = true })
 end
 
 ---@return boolean
