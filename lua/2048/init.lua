@@ -596,14 +596,26 @@ function M:confirm_restart()
         { string.format("%s%s%s", half_sep, msg, half_sep) }
     )
     vim.api.nvim_buf_add_highlight(self.score_bufnr, self.ns_id, "2048_Confirmation", 0, 0, -1)
+    vim.api.nvim_win_set_config(self.score_winnr, {
+        title = "",
+    })
+
     vim.api.nvim_set_current_win(self.score_winnr)
-    vim.keymap.set("n", "y", function()
+
+    local function reset_scoreboard_changes()
         vim.api.nvim_set_current_win(self.winnr)
+        vim.api.nvim_win_set_config(self.score_winnr, {
+            title = " Score ",
+            title_pos = "center",
+        })
+    end
+    vim.keymap.set("n", "y", function()
         self:restart()
+        reset_scoreboard_changes()
     end, { buffer = true })
     vim.keymap.set("n", "n", function()
-        vim.api.nvim_set_current_win(self.winnr)
         self:update_score()
+        reset_scoreboard_changes()
     end, { buffer = true })
 end
 
