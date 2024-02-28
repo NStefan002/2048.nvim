@@ -1,4 +1,4 @@
-*2048.nvim.txt*        For Neovim >= 0.9.1       Last change: 2024 February 21
+*2048.nvim.txt*        For Neovim >= 0.9.1       Last change: 2024 February 28
 
 ==============================================================================
 Table of Contents                                *2048.nvim-table-of-contents*
@@ -67,6 +67,9 @@ CONTROLS                                             *2048.nvim-2048-controls*
 - `l` - move the squares to the right
 - `u` - undo the last move
 - `r` - restart the game
+- `n` - new game (select the board size)
+- `<CR>` - confirm in menus
+- `<Esc>` - cancel in menus
 
 **NOTE:**
 
@@ -81,6 +84,9 @@ You can change the default mappings. ~
             right = "<Right>",
             undo = "<C-z>",
             restart = "R",
+            new_game = "N",
+            confirm = "y",
+            cancel = "n",
         },
     })
 <
