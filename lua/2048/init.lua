@@ -229,7 +229,7 @@ function M:reset_scoreboard_changes()
 end
 
 function M:new_game()
-    self:disable_keymaps()
+    self.disable_keymaps()
 
     local squares = {}
     squares[1] = {
@@ -369,7 +369,7 @@ function M:new_game()
         generate_text()
         vim.api.nvim_buf_set_lines(self.bufnr, 0, -1, false, text)
         for i = 0, #text - 1 do
-            vim.api.nvim_buf_add_highlight(self.bufnr, self.ns_id, "2048_Background", i, 0, -1)
+            vim.api.nvim_buf_add_highlight(self.bufnr, self.ns_id, "2048_Confirmation", i, 0, -1)
         end
     end
 
@@ -396,7 +396,7 @@ function M:new_game()
             vim.api.nvim_buf_add_highlight(
                 self.bufnr,
                 self.ns_id,
-                "2048_Background",
+                "2048_Confirmation",
                 #text - 2,
                 start - 1,
                 finish
@@ -427,7 +427,7 @@ function M:new_game()
             vim.api.nvim_buf_add_highlight(
                 self.bufnr,
                 self.ns_id,
-                "2048_Background",
+                "2048_Confirmation",
                 #text - 2,
                 start - 1,
                 finish
@@ -473,7 +473,7 @@ function M:update_score()
 end
 
 function M:set_keymaps()
-    self:disable_keymaps()
+    self.disable_keymaps()
 
     local keys = config.keys
     local opts = { buffer = true }
@@ -524,7 +524,7 @@ function M:set_keymaps()
     end, opts)
 end
 
-function M:disable_keymaps()
+function M.disable_keymaps()
     local opts = { buffer = true }
     for _, key in pairs(config.keys) do
         vim.keymap.set("n", key, "<nop>", opts)
@@ -598,7 +598,7 @@ function M:draw()
     vim.api.nvim_buf_clear_namespace(self.bufnr, self.ns_id, 0, -1)
     local height = self:calculate_window_height()
     for i = 0, height - 1 do
-        vim.api.nvim_buf_add_highlight(self.bufnr, self.ns_id, "2048_BackgroundNoText", i, 0, -1)
+        vim.api.nvim_buf_add_highlight(self.bufnr, self.ns_id, "2048_Background", i, 0, -1)
     end
 
     local current_row = self._vertical_padding
@@ -635,7 +635,7 @@ function M:draw()
             vim.api.nvim_buf_add_highlight(
                 self.bufnr,
                 self.ns_id,
-                "2048_BackgroundNoText",
+                "2048_Background",
                 current_row + math.floor(self._square_height / 2),
                 0,
                 -1
@@ -958,7 +958,7 @@ function M:remove_square_trail_down(x, y, len)
         )
         local hl_grp
         if k % background_line < self._vertical_padding then
-            hl_grp = "2048_BackgroundNoText"
+            hl_grp = "2048_Background"
         else
             hl_grp = "2048_Value0"
         end
@@ -983,7 +983,7 @@ function M:remove_square_trail_up(x, y, len)
         )
         local hl_grp
         if k % background_line < self._vertical_padding then
-            hl_grp = "2048_BackgroundNoText"
+            hl_grp = "2048_Background"
         else
             hl_grp = "2048_Value0"
         end
@@ -1002,7 +1002,7 @@ function M:remove_square_trail_right(x, y, len)
             vim.api.nvim_buf_set_text(self.bufnr, i, k, i, k + 1, { " " })
             local hl_grp
             if k % background_line < self._horizontal_padding then
-                hl_grp = "2048_BackgroundNoText"
+                hl_grp = "2048_Background"
             else
                 hl_grp = "2048_Value0"
             end
@@ -1022,7 +1022,7 @@ function M:remove_square_trail_left(x, y, len)
             vim.api.nvim_buf_set_text(self.bufnr, i, k, i, k + 1, { " " })
             local hl_grp
             if k % background_line < self._horizontal_padding then
-                hl_grp = "2048_BackgroundNoText"
+                hl_grp = "2048_Background"
             else
                 hl_grp = "2048_Value0"
             end

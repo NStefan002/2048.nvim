@@ -20,12 +20,7 @@ function Highlights.setup()
     vim.api.nvim_set_hl(ns_id, "2048_Value32768", { fg = "#ffffff", bg = "#000000", bold = true })
     vim.api.nvim_set_hl(ns_id, "2048_Value65536", { fg = "#ffffff", bg = "#000000", bold = true })
     vim.api.nvim_set_hl(ns_id, "2048_Value131072", { fg = "#ffffff", bg = "#000000", bold = true })
-    vim.api.nvim_set_hl(
-        ns_id,
-        "2048_BackgroundNoText",
-        { fg = "#aa9c8f", bg = "#aa9c8f", bold = true }
-    )
-    vim.api.nvim_set_hl(ns_id, "2048_Background", { fg = "#ffffff", bg = "#aa9c8f", bold = true })
+    vim.api.nvim_set_hl(ns_id, "2048_Background", { fg = "#aa9c8f", bg = "#aa9c8f", bold = true })
     vim.api.nvim_set_hl(ns_id, "2048_Confirmation", { fg = "#ffffff", bg = "#aa9c8f", bold = true })
 end
 
