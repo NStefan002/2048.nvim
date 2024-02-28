@@ -886,15 +886,17 @@ function M:restart()
 end
 
 function M:confirm_restart()
-    self:set_scoreboard_buffer_text("Confirm restart? (y/n)")
+    self:set_scoreboard_buffer_text(
+        string.format("Press %s to confirm, %s to cancel", config.keys.confirm, config.keys.cancel)
+    )
 
     vim.api.nvim_set_current_win(self.score_winnr)
 
-    vim.keymap.set("n", "y", function()
+    vim.keymap.set("n", config.keys.confirm, function()
         self:restart()
         self:reset_scoreboard_changes()
     end, { buffer = true })
-    vim.keymap.set("n", "n", function()
+    vim.keymap.set("n", config.keys.cancel, function()
         self:update_score()
         self:reset_scoreboard_changes()
     end, { buffer = true })
