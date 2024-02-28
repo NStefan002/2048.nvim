@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.8.0](https://github.com/NStefan002/2048.nvim/compare/v2.7.0...v2.8.0) (2024-02-28)
+
+
+### Features
+
+* 'new game' keymap, choose between many board sizes ([f46130f](https://github.com/NStefan002/2048.nvim/commit/f46130f72f2fc1e6acd7105e8f79fdc1c8a0769e))
+* use user defined keymaps ([31d68b6](https://github.com/NStefan002/2048.nvim/commit/31d68b69a7673f0285e1e91041b5a88f6136795a))
+
+
+### Bug Fixes
+
+* luacheck - unused parameter, remove unnecessary hlgroup ([d802900](https://github.com/NStefan002/2048.nvim/commit/d8029005f71402678a799445cfc756995fb8a921))
+
 ## [2.7.0](https://github.com/NStefan002/2048.nvim/compare/v2.6.1...v2.7.0) (2024-02-21)
 
 
