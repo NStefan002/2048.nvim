@@ -35,7 +35,6 @@ use({
 
 `:Rocks install 2048.nvim`
 
-
 ## ❓ How to Play
 
 1. `:Play2048`
@@ -53,6 +52,9 @@ use({
 -   `l` - move the squares to the right
 -   `u` - undo the last move
 -   `r` - restart the game
+-   `n` - new game (select the board size)
+-   `<CR>` - confirm in menus
+-   `<Esc>` - cancel in menus
 
 **NOTE:**
 
@@ -69,6 +71,9 @@ require("2048").setup({
         right = "<Right>",
         undo = "<C-z>",
         restart = "R",
+        new_game = "N",
+        confirm = "y",
+        cancel = "n",
     },
 })
 ```

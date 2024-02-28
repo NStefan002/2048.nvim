@@ -5,7 +5,7 @@ M.__index = M
 
 function M.new()
     local data = Data.load()
-    local self = {
+    local self = setmetatable({
         bufnr = nil,
         winnr = nil,
         score_bufnr = nil,
@@ -17,24 +17,21 @@ function M.new()
         _horizontal_padding = 2,
         _up_down_animation_interval = 30,
         _left_right_animation_interval = nil,
+        _arrow_pressed_interval = 250,
         board_height = data.board_height,
         board_width = data.board_width,
         cs = data.cs, -- current state
         ps = data.ps, -- previous state
-        destinations = {
-            { { 1, 1 }, { 1, 2 }, { 1, 3 }, { 1, 4 } },
-            { { 2, 1 }, { 2, 2 }, { 2, 3 }, { 2, 4 } },
-            { { 3, 1 }, { 3, 2 }, { 3, 3 }, { 3, 4 } },
-            { { 4, 1 }, { 4, 2 }, { 4, 3 }, { 4, 4 } },
-        },
+        destinations = nil,
         changed = false,
         did_undo = false,
-    }
+    }, M)
     -- vertical spaces are larger than the horizontal spaces, so we need to adjust some things
     self._left_right_animation_interval = self._up_down_animation_interval
         * (self._square_height + self._vertical_padding)
         / (self._square_width + self._horizontal_padding)
-    return setmetatable(self, M)
+    self:reset_destinations()
+    return self
 end
 
 ---@class Keymap
@@ -44,9 +41,22 @@ end
 ---@field right string
 ---@field undo string
 ---@field restart string
+---@field new_game string
+---@field confirm string
+---@field cancel string
 
 ---@type Keymap
-local default_keys = { up = "k", down = "j", left = "h", right = "l", undo = "u", restart = "r" }
+local default_keys = {
+    up = "k",
+    down = "j",
+    left = "h",
+    right = "l",
+    undo = "u",
+    restart = "r",
+    new_game = "n",
+    confirm = "<CR>",
+    cancel = "<Esc>",
+}
 
 ---@class Config
 ---@field keys Keymap
@@ -73,8 +83,8 @@ function M.setup(opts)
 end
 
 function M:create_window()
-    local height = self:get_window_height()
-    local width = self:get_window_width()
+    local height = self:calculate_window_height()
+    local width = self:calculate_window_width()
     -- Why 5? -> 5 is just an approximation, so there is enough space for the scoreboard
     -- window, and a little bit of padding between the scoreboard window and the top of the editor
     local extra_space = 5
@@ -98,7 +108,7 @@ function M:create_window()
         width = width,
         height = height,
         style = "minimal",
-        border = "double",
+        border = "single",
         noautocmd = true,
     })
 
@@ -110,18 +120,23 @@ function M:create_window()
     self.bufnr = bufnr
     self.winnr = winnr
 
-    local replacement = {}
-    for _ = 1, height do
-        table.insert(replacement, string.rep(" ", width, ""))
-    end
-    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, replacement)
-
+    self:clear_buffer_text()
     vim.api.nvim_win_set_hl_ns(self.winnr, self.ns_id)
 
     self:create_scoreboard_window()
     self:set_keymaps()
     self:create_autocmds()
     self:draw()
+end
+
+function M:clear_buffer_text()
+    local height = vim.api.nvim_win_get_height(self.winnr)
+    local width = vim.api.nvim_win_get_width(self.winnr)
+    local replacement = {}
+    for _ = 1, height do
+        table.insert(replacement, string.rep(" ", width, ""))
+    end
+    vim.api.nvim_buf_set_lines(self.bufnr, 0, -1, false, replacement)
 end
 
 function M:close_window()
@@ -141,7 +156,7 @@ function M:close_window()
 end
 
 function M:create_scoreboard_window()
-    local width = self:get_window_width()
+    local width = self:calculate_window_width()
     local height = 1
 
     local bufnr = vim.api.nvim_create_buf(false, true)
@@ -185,10 +200,269 @@ function M:close_scoreboard_window()
     self.score_winnr = nil
 end
 
+---center the notification text in the scoreboard buffer
+---@param text string
+function M:set_scoreboard_buffer_text(text)
+    local width = vim.api.nvim_win_get_width(self.score_winnr)
+    local half_sep = string.rep(" ", math.floor((width - #text) / 2), "")
+    vim.api.nvim_buf_set_lines(
+        self.score_bufnr,
+        0,
+        1,
+        false,
+        { string.format("%s%s%s", half_sep, text, half_sep) }
+    )
+    vim.api.nvim_buf_add_highlight(self.score_bufnr, self.ns_id, "2048_Confirmation", 0, 0, -1)
+    vim.api.nvim_win_set_config(self.score_winnr, {
+        title = "",
+    })
+end
+
+---call after the set_scoreboard_buffer_text function to undo it
+function M:reset_scoreboard_changes()
+    vim.api.nvim_set_current_win(self.winnr)
+    vim.api.nvim_win_set_config(self.score_winnr, {
+        title = " Score ",
+        title_pos = "center",
+    })
+    self:update_score()
+end
+
+function M:new_game()
+    self.disable_keymaps()
+
+    local squares = {}
+    squares[1] = {
+        "󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤",
+    }
+
+    squares[2] = {
+        "󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤",
+    }
+
+    squares[3] = {
+        "󰝤 󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤 󰝤",
+    }
+
+    squares[4] = {
+        "󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤",
+    }
+
+    squares[5] = {
+        "󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤",
+    }
+
+    squares[6] = {
+        "󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤",
+    }
+
+    squares[7] = {
+        "󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤",
+    }
+
+    squares[8] = {
+        "󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤",
+    }
+
+    squares[9] = {
+        "󰝤 󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤 󰝤",
+    }
+
+    squares[10] = {
+        "󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤",
+        "󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤 󰝤",
+    }
+
+    local dimensions = {
+        { 4, 4 },
+        { 5, 5 },
+        { 6, 6 },
+        { 8, 8 },
+        { 5, 3 },
+        { 6, 4 },
+        { 8, 5 },
+        { 3, 5 },
+        { 4, 6 },
+        { 5, 8 },
+    }
+    local dimensions_str = {}
+    for i = 1, #dimensions do
+        dimensions_str[i] = string.format("%dx%d", dimensions[i][1], dimensions[i][2])
+    end
+    local show_idx = 1
+
+    local text = {}
+
+    local function generate_text()
+        text = {}
+
+        local height = vim.api.nvim_win_get_height(self.winnr)
+        local width = vim.api.nvim_win_get_width(self.winnr)
+        local vert_sep_len = math.ceil((height - #squares[show_idx]) / 2)
+        for _ = 1, vert_sep_len do
+            table.insert(text, string.rep(" ", width, ""))
+        end
+
+        -- NOTE: use nvim_strwidth for non-ascii strings
+        local square_width = vim.api.nvim_strwidth(squares[show_idx][1])
+        local horiz_sep_len = math.ceil((width - square_width) / 2) - 1
+        local horiz_sep = string.rep(" ", horiz_sep_len, "")
+
+        for i = 1, #squares[show_idx] do
+            table.insert(text, string.format("%s%s%s ", horiz_sep, squares[show_idx][i], horiz_sep))
+        end
+
+        for _ = 1, height - #squares[show_idx] - vert_sep_len do
+            table.insert(text, string.rep(" ", width, ""))
+        end
+
+        local arrows = string.format("%s%s%s", " <  ", dimensions_str[show_idx], "  > ")
+        horiz_sep_len = math.ceil((width - #arrows) / 2) - 1
+        horiz_sep = string.rep(" ", horiz_sep_len, "")
+        text[#text - 1] = string.format("%s%s%s ", horiz_sep, arrows, horiz_sep)
+    end
+
+    local function display_menu()
+        generate_text()
+        vim.api.nvim_buf_set_lines(self.bufnr, 0, -1, false, text)
+        for i = 0, #text - 1 do
+            vim.api.nvim_buf_add_highlight(self.bufnr, self.ns_id, "2048_Confirmation", i, 0, -1)
+        end
+    end
+
+    local function show_prev()
+        if show_idx == 1 then
+            return
+        end
+        show_idx = show_idx - 1
+        display_menu()
+
+        local start, finish = string.find(text[#text - 1], " < ", 1, true)
+        start = start or 0
+        finish = finish or 0
+
+        vim.api.nvim_buf_add_highlight(
+            self.bufnr,
+            self.ns_id,
+            "2048_Value8",
+            #text - 2,
+            start - 1,
+            finish
+        )
+        vim.defer_fn(function()
+            vim.api.nvim_buf_add_highlight(
+                self.bufnr,
+                self.ns_id,
+                "2048_Confirmation",
+                #text - 2,
+                start - 1,
+                finish
+            )
+        end, self._arrow_pressed_interval)
+    end
+
+    local function show_next()
+        if show_idx == #squares then
+            return
+        end
+        show_idx = show_idx + 1
+        display_menu()
+
+        local start, finish = string.find(text[#text - 1], " > ", 1, true)
+        start = start or 0
+        finish = finish or 0
+
+        vim.api.nvim_buf_add_highlight(
+            self.bufnr,
+            self.ns_id,
+            "2048_Value8",
+            #text - 2,
+            start - 1,
+            finish
+        )
+        vim.defer_fn(function()
+            vim.api.nvim_buf_add_highlight(
+                self.bufnr,
+                self.ns_id,
+                "2048_Confirmation",
+                #text - 2,
+                start - 1,
+                finish
+            )
+        end, self._arrow_pressed_interval)
+    end
+
+    display_menu()
+    self:set_scoreboard_buffer_text(
+        string.format("Press %s to select, %s to cancel", config.keys.confirm, config.keys.cancel)
+    )
+
+    local opts = { buffer = true }
+    vim.keymap.set("n", config.keys.left, show_prev, opts)
+    vim.keymap.set("n", config.keys.right, show_next, opts)
+    vim.keymap.set("n", config.keys.confirm, function()
+        self.board_height = dimensions[show_idx][1]
+        self.board_width = dimensions[show_idx][2]
+        self:reset_values()
+        self:close_window()
+        self:create_window()
+    end, opts)
+    vim.keymap.set("n", config.keys.cancel, function()
+        self:reset_scoreboard_changes()
+        self:clear_buffer_text()
+        self.changed = false
+        self:draw()
+        self:set_keymaps()
+    end, opts)
+end
+
 function M:update_score()
     local score_text = string.format(" Score: %d", self.cs.score)
     local high_score_text = string.format("High Score: %d ", self.cs.high_score)
-    local sep = string.rep(" ", self:get_window_width() - #score_text - #high_score_text, "")
+    local sep = string.rep(" ", self:calculate_window_width() - #score_text - #high_score_text, "")
     vim.api.nvim_buf_set_lines(
         self.score_bufnr,
         0,
@@ -199,18 +473,12 @@ function M:update_score()
 end
 
 function M:set_keymaps()
+    self.disable_keymaps()
+
     local keys = config.keys
-    local function reset_destinations()
-        self.destinations = {
-            { { 1, 1 }, { 1, 2 }, { 1, 3 }, { 1, 4 } },
-            { { 2, 1 }, { 2, 2 }, { 2, 3 }, { 2, 4 } },
-            { { 3, 1 }, { 3, 2 }, { 3, 3 }, { 3, 4 } },
-            { { 4, 1 }, { 4, 2 }, { 4, 3 }, { 4, 4 } },
-        }
-    end
     local opts = { buffer = true }
     vim.keymap.set("n", keys.down, function()
-        reset_destinations()
+        self:reset_destinations()
         local tmp = vim.deepcopy(self.cs)
         self:add_down()
         if self.changed then
@@ -219,7 +487,7 @@ function M:set_keymaps()
         end
     end, opts)
     vim.keymap.set("n", keys.up, function()
-        reset_destinations()
+        self:reset_destinations()
         local tmp = vim.deepcopy(self.cs)
         self:add_up()
         if self.changed then
@@ -228,7 +496,7 @@ function M:set_keymaps()
         end
     end, opts)
     vim.keymap.set("n", keys.right, function()
-        reset_destinations()
+        self:reset_destinations()
         local tmp = vim.deepcopy(self.cs)
         self:add_right()
         if self.changed then
@@ -237,7 +505,7 @@ function M:set_keymaps()
         end
     end, opts)
     vim.keymap.set("n", keys.left, function()
-        reset_destinations()
+        self:reset_destinations()
         local tmp = vim.deepcopy(self.cs)
         self:add_left()
         if self.changed then
@@ -251,6 +519,16 @@ function M:set_keymaps()
     vim.keymap.set("n", keys.restart, function()
         self:confirm_restart()
     end, opts)
+    vim.keymap.set("n", keys.new_game, function()
+        self:new_game()
+    end, opts)
+end
+
+function M.disable_keymaps()
+    local opts = { buffer = true }
+    for _, key in pairs(config.keys) do
+        vim.keymap.set("n", key, "<nop>", opts)
+    end
 end
 
 function M:create_autocmds()
@@ -290,14 +568,24 @@ function M:create_autocmds()
     })
 end
 
-function M:get_window_height()
+function M:calculate_window_height()
     return self.board_height * (self._square_height + self._vertical_padding)
         + self._vertical_padding
 end
 
-function M:get_window_width()
+function M:calculate_window_width()
     return self.board_width * (self._square_width + self._horizontal_padding)
         + self._horizontal_padding
+end
+
+function M:reset_destinations()
+    self.destinations = {}
+    for i = 1, self.board_height do
+        self.destinations[i] = {}
+        for j = 1, self.board_width do
+            self.destinations[i][j] = { i, j }
+        end
+    end
 end
 
 function M:draw()
@@ -308,7 +596,7 @@ function M:draw()
     self.did_undo = false
 
     vim.api.nvim_buf_clear_namespace(self.bufnr, self.ns_id, 0, -1)
-    local height = self:get_window_height()
+    local height = self:calculate_window_height()
     for i = 0, height - 1 do
         vim.api.nvim_buf_add_highlight(self.bufnr, self.ns_id, "2048_Background", i, 0, -1)
     end
@@ -574,48 +862,43 @@ function M:undo()
     self:draw()
 end
 
-function M:restart()
-    local defaults = Data.get_defaults()
-    self.cs.values = vim.deepcopy(defaults.cs.values)
-    self.cs.score = defaults.cs.score
-    self.ps.values = vim.deepcopy(defaults.ps.values)
-    self.ps.score = defaults.ps.score
+function M:reset_values()
+    self.cs.values = {}
+    for _ = 1, self.board_height do
+        local tmp = {}
+        for _ = 1, self.board_width do
+            table.insert(tmp, 0)
+        end
+        table.insert(self.cs.values, tmp)
+    end
+    self.cs.values[math.random(1, self.board_height)][math.random(1, self.board_width)] = 2
+    self.ps.values = vim.deepcopy(self.cs.values)
+    self.cs.score = 0
+    self.ps.score = 0
+    self.ps.highscore = 0
     self.changed = false
     self.did_undo = false
+end
+
+function M:restart()
+    self:reset_values()
     self:draw()
 end
 
 function M:confirm_restart()
-    local msg = "Confirm restart? (y/n)"
-    local half_sep = string.rep(" ", math.floor((self:get_window_width() - #msg) / 2), "")
-    vim.api.nvim_buf_set_lines(
-        self.score_bufnr,
-        0,
-        1,
-        false,
-        { string.format("%s%s%s", half_sep, msg, half_sep) }
+    self:set_scoreboard_buffer_text(
+        string.format("Press %s to confirm, %s to cancel", config.keys.confirm, config.keys.cancel)
     )
-    vim.api.nvim_buf_add_highlight(self.score_bufnr, self.ns_id, "2048_Confirmation", 0, 0, -1)
-    vim.api.nvim_win_set_config(self.score_winnr, {
-        title = "",
-    })
 
     vim.api.nvim_set_current_win(self.score_winnr)
 
-    local function reset_scoreboard_changes()
-        vim.api.nvim_set_current_win(self.winnr)
-        vim.api.nvim_win_set_config(self.score_winnr, {
-            title = " Score ",
-            title_pos = "center",
-        })
-    end
-    vim.keymap.set("n", "y", function()
+    vim.keymap.set("n", config.keys.confirm, function()
         self:restart()
-        reset_scoreboard_changes()
+        self:reset_scoreboard_changes()
     end, { buffer = true })
-    vim.keymap.set("n", "n", function()
+    vim.keymap.set("n", config.keys.cancel, function()
         self:update_score()
-        reset_scoreboard_changes()
+        self:reset_scoreboard_changes()
     end, { buffer = true })
 end
 
@@ -655,15 +938,7 @@ function M:game_over()
     end
 
     -- move is not possible, game over
-    local msg = string.format("Game over! Your score is %d.", self.cs.score)
-    local half_sep = string.rep(" ", math.floor((self:get_window_width() - #msg) / 2), "")
-    vim.api.nvim_buf_set_lines(
-        self.score_bufnr,
-        0,
-        1,
-        false,
-        { string.format("%s%s%s", half_sep, msg, half_sep) }
-    )
+    self:set_scoreboard_buffer_text(string.format("Game over! Your score is %d.", self.cs.score))
 
     return true
 end
