@@ -1,4 +1,4 @@
-*2048.nvim.txt*        For Neovim >= 0.9.1       Last change: 2024 February 28
+*2048.nvim.txt*         For Neovim >= 0.9.1         Last change: 2024 March 17
 
 ==============================================================================
 Table of Contents                                *2048.nvim-table-of-contents*
