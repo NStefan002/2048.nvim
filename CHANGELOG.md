@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.8.1](https://github.com/NStefan002/2048.nvim/compare/v2.8.0...v2.8.1) (2024-03-17)
+
+
+### Bug Fixes
+
+* **highlights:** remove unnecessary hlgroups, don't be limited to 4x4 ([7aa1491](https://github.com/NStefan002/2048.nvim/commit/7aa149114c88bffb840be25be2bd764512f2a71a))
+
 ## [2.8.0](https://github.com/NStefan002/2048.nvim/compare/v2.7.0...v2.8.0) (2024-02-28)
 
 
