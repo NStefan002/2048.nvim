@@ -651,7 +651,10 @@ function M:draw()
     end
 
     if self:game_over() then
-        return
+        -- move is not possible, game over
+        self:set_scoreboard_buffer_text(
+            string.format("Game over! Your score is %d.", self.cs.score)
+        )
     end
 end
 
@@ -937,9 +940,6 @@ function M:game_over()
             end
         end
     end
-
-    -- move is not possible, game over
-    self:set_scoreboard_buffer_text(string.format("Game over! Your score is %d.", self.cs.score))
 
     return true
 end
