@@ -689,7 +689,8 @@ function M:draw_square(x, y, i, j, _use_prev_state)
     else
         value = self.cs.values[i][j]
     end
-    local hl_grp = "2048_Value" .. tostring(value)
+    value = math.min(value, 4096)
+    local hl_grp = string.format("2048_Value%s", tonumber(value))
     for k = 0, self._square_height - 1 do
         vim.api.nvim_buf_add_highlight(
             self.bufnr,
