@@ -1070,6 +1070,7 @@ function M:animate_down()
         vim.schedule_wrap(function()
             if steps == 0 then
                 timer:stop()
+                timer:close()
                 self:draw()
                 return
             end
@@ -1124,6 +1125,7 @@ function M:animate_up()
         vim.schedule_wrap(function()
             if steps == 0 then
                 timer:stop()
+                timer:close()
                 self:draw()
                 return
             end
@@ -1179,6 +1181,7 @@ function M:animate_right()
         vim.schedule_wrap(function()
             if steps == 0 then
                 timer:stop()
+                timer:close()
                 self:draw()
                 return
             end
@@ -1233,6 +1236,7 @@ function M:animate_left()
         vim.schedule_wrap(function()
             if steps == 0 then
                 timer:stop()
+                timer:close()
                 self:draw()
                 return
             end
